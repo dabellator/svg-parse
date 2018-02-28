@@ -1,0 +1,16 @@
+{
+  "name": "svg-parse",
+  "version": "1.0.0",
+  "description": "A tool for extracting metadata from svgs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jordan Bundy",
+  "license": "ISC",
+  "dependencies": {
+    "const": "^1.0.0",
+    "htmlparser2": "^3.9.2",
+    "svgutils": "^0.13.6"
+  }
+}
