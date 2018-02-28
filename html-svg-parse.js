@@ -15,12 +15,18 @@ const pointList = areas.filter(area => {
 
 function generateList(area) {
   if (area.nodeName === 'rect') return [
-    {x: parseFloat(area.attributes.x.value), y: parseFloat(area.attributes.y.value)},
-    {x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value), y: parseFloat(area.attributes.y.value)},
-    {x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value), y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value)},
-    {x: parseFloat(area.attributes.x.value), y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value)}
+    {x: parseInt(area.attributes.x.value), y: parseInt(area.attributes.y.value)},
+    {x: parseInt(area.attributes.x.value) + parseInt(area.attributes.width.value), y: parseInt(area.attributes.y.value)},
+    {x: parseInt(area.attributes.x.value) + parseInt(area.attributes.width.value), y: parseInt(area.attributes.y.value) + parseInt(area.attributes.height.value)},
+    {x: parseInt(area.attributes.x.value), y: parseInt(area.attributes.y.value) + parseInt(area.attributes.height.value)}
   ]
-  if (area.nodeName === 'polygon') return area.points;
+  if (area.nodeName === 'polygon') {
+    Object.keys(area.points).forEach(key => {
+      area.points[key].x = parseInt(area.points[key].x);
+      area.points[key].y = parseInt(area.points[key].y);
+    })
+    return area.points;
+  }
   if (area.nodeName === 'g') return undefined;
 }
   
@@ -196,6 +202,7 @@ function isPointInPoly(poly, pt){
       ((poly[i].y <= pt.y && pt.y < poly[j].y) || (poly[j].y <= pt.y && pt.y < poly[i].y))
       && (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
       && (c = !c);
+    console.log(poly, pt, c)
   return c;
 }
 
@@ -294,31 +301,36 @@ function makeWaypoints() {
   // take pointList and identify lines that are navigable
   let crosses = [];
   structureList.forEach(structure => {
-    isPolyBisectPoly(structure, pointList[9]).forEach(cross => {
-      let above;
-      let below;
-      crosses.forEach(point => {
-        // need to handle both sides
-        if (point.x === cross.x || point.y === cross.y) {
-          // console.log("Data: ", point, cross)
-          const newDistance = (cross.x - point.x) + (cross.y - point.y);
-          // console.log("dist: ", newDistance);
-          above = above && newDistance > above.distance ? above : newDistance > 0 ? {x: point.x, y: point.y, distance: newDistance} : above;
-          below = below && newDistance < below.distance ? below : newDistance < 0 ? {x: point.x, y: point.y, distance: newDistance} : below;
-          // console.log("result: ", above, below)
+    pointList.forEach(point => {
+      isPolyBisectPoly(structure, point).forEach(cross => {
+        let above;
+        let below;
+        crosses.forEach(point => {
+          // need to handle both sides
+          if (point.x === cross.x || point.y === cross.y) {
+            const newDistance = (cross.x - point.x) + (cross.y - point.y);
+            
+            above = above && newDistance > above.distance ? above : newDistance > 0 ? {x: point.x, y: point.y, distance: newDistance} : above;
+            below = below && newDistance < below.distance ? below : newDistance < 0 ? {x: point.x, y: point.y, distance: newDistance} : below;
+          }
+        })
+        
+        above = above || cross;
+        below = below || cross;
+        if (above.x !== below.x || above.y !== below.y) {
+          const x = (above.x - below.x) / 2 + below.x;
+          const y = (above.y - below.y) / 2 + below.y;
+          let draw = true;
+          let count = 0;
+
+          while(draw && count < structureList.length) {
+            draw = !isPointInPoly(structureList[count++], {x,y});
+          }
+          if(draw) drawCircle(x, y, 'green')
         }
+        crosses.push(cross);
       })
-      console.log(above, below, cross)
-      above = above || cross;
-      below = below || cross;
-      if (above.x !== below.x || above.y !== below.y) {
-        const x = (above.x - below.x) / 2 + below.x;
-        const y = (above.y - below.y) / 2 + below.y;
-        drawCircle(x, y, 'green');
-      }
-      crosses.push(cross);
-      console.log(crosses)
-    })
+    });
   })
 }
 
