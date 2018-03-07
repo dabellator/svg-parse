@@ -1,4 +1,4 @@
-let svgElement = document.getElementById("Level11.Floor20");
+let svgElement = document.getElementById("Level11.Floor30");
 const svgns = "http://www.w3.org/2000/svg";
 
 const areas = Array.prototype.filter.call(svgElement.children, child => {
@@ -7,23 +7,41 @@ const areas = Array.prototype.filter.call(svgElement.children, child => {
   return filteredChild;
 })
 
-console.log(areas)
+function extractPolyElement(element, children) {
+  children = children || [];
 
-const pointList = areas.filter(area => {
-  return area.nodeName !== 'g'
+  if (element.childNodes && element.childNodes[0]) {
+    Object.keys(element.childNodes).forEach(childKey => {
+      return childKey !== 'length' && extractPolyElement(element.childNodes[childKey], children);
+    })
+  } else if (element.nodeName !== '#text') children.push(element);
+
+  return children;
+}
+
+const newAreas = extractPolyElement(document.getElementById("Walkable"));
+console.log(newAreas)
+const structures = extractPolyElement(document.getElementById("NotWalkable"));
+console.log(structures)
+const pointList = newAreas.filter(area => {
+  return area.nodeName !== 'g' && area.nodeName !== 'path'
 }).map(generateList);
+
+const structureList = structures.filter(area => {
+  return area.nodeName !== 'g' && area.nodeName !== 'path' && area.nodeName !=='polyline' && area.nodeName !=='line'
+}).map(generateList)
 
 function generateList(area) {
   if (area.nodeName === 'rect') return [
-    {x: parseInt(area.attributes.x.value), y: parseInt(area.attributes.y.value)},
-    {x: parseInt(area.attributes.x.value) + parseInt(area.attributes.width.value), y: parseInt(area.attributes.y.value)},
-    {x: parseInt(area.attributes.x.value) + parseInt(area.attributes.width.value), y: parseInt(area.attributes.y.value) + parseInt(area.attributes.height.value)},
-    {x: parseInt(area.attributes.x.value), y: parseInt(area.attributes.y.value) + parseInt(area.attributes.height.value)}
+    {x: parseFloat(area.attributes.x.value), y: parseFloat(area.attributes.y.value)},
+    {x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value), y: parseFloat(area.attributes.y.value)},
+    {x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value), y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value)},
+    {x: parseFloat(area.attributes.x.value), y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value)}
   ]
   if (area.nodeName === 'polygon') {
     Object.keys(area.points).forEach(key => {
-      area.points[key].x = parseInt(area.points[key].x);
-      area.points[key].y = parseInt(area.points[key].y);
+      area.points[key].x = parseFloat(area.points[key].x);
+      area.points[key].y = parseFloat(area.points[key].y);
     })
     return area.points;
   }
@@ -59,16 +77,9 @@ const groups = areas.filter(area => {
   }
 })
 
-const pointA = {x: parseFloat(areas[9].attributes.x.value) + parseFloat(areas[9].attributes.width.value) / 2, y: parseFloat(areas[9].attributes.y.value) + parseFloat(areas[9].attributes.height.value) / 2};
-const pointB = {x: parseFloat(areas[10].attributes.x.value) + parseFloat(areas[10].attributes.width.value) / 2, y: parseFloat(areas[10].attributes.y.value)+ parseFloat(areas[10].attributes.width.value) / 2};
-const pointC = {x: 1041.9449462890625, y: 74.69681418814311};
-const pointD = {x: 1041.9449462890625, y: 21.543699264526367};
-console.log(pointA, pointB)
-
-const structureList = Array.prototype.map.call(areas[16].children, generateList);
-
 let POIList = svgElement.appendChild(document.createElementNS(svgns, 'g'));
 POIList.setAttribute('id', 'POIList');
+
 function createPOI(rect) {
   let labelGroup = POIList.appendChild(document.createElementNS(svgns, 'g'));
   labelGroup.setAttribute('opacity', '0');
@@ -127,9 +138,6 @@ function findCross(a, aa, b, bb) {
             / ((a.x - aa.x) * (b.y - bb.y) - (a.y - aa.y) * (b.x - bb.x));
   const y = ((a.x * aa.y - a.y * aa.x) * (b.y - bb.y) - (a.y - aa.y) * (b.x * bb.y - b.y * bb.x))
             / ((a.x - aa.x) * (b.y - bb.y) - (a.y - aa.y) * (b.x - bb.x))
-  
-  console.log(x, y)
-  console.log(a, aa, b, bb)
 
   if ( x && y ) {
     var circle = document.createElementNS(svgns, 'circle');
@@ -164,16 +172,6 @@ function isPointOnLine(a,b, point) {
 function findIntersectionFromPoints(a,b) {
   const intersection = calcInter(lineEquation(a.a, a.b), lineEquation(b.a, b.b));
   if (!intersection) return 0;
-  a.b.x = parseFloat(a.b.x.toPrecision(4));
-  b.a.x = parseFloat(b.a.x.toPrecision(4));
-  a.a.x = parseFloat(a.a.x.toPrecision(4));
-  b.b.x = parseFloat(b.b.x.toPrecision(4));
-  intersection.x = parseFloat(intersection.x.toPrecision(4));
-  a.a.y = parseFloat(a.a.y.toPrecision(4));
-  a.b.y = parseFloat(a.b.y.toPrecision(4));
-  b.a.y = parseFloat(b.a.y.toPrecision(4));
-  b.b.y = parseFloat(b.b.y.toPrecision(4));
-  intersection.y = parseFloat(intersection.y.toPrecision(4));
   return isPointOnLine(a.a, a.b, intersection) && isPointOnLine(b.a, b.b, intersection) ? intersection : 0;
 }
 
@@ -185,7 +183,6 @@ function buildPath(path, points) {
   points.forEach(point => {
     path += `L ${point.x} ${point.y} `
   })
-  console.log(path)
   return path;
 }
 
@@ -196,15 +193,31 @@ function drawPath(path, stroke) {
   pathElement.setAttribute('fill', 'none')
 }
 
-function isPointInPoly(poly, pt){
-  if (!poly) return false;
-  for(var c = false, i = -1, l = poly.length, j = l - 1; ++i < l; j = i)
-      ((poly[i].y <= pt.y && pt.y < poly[j].y) || (poly[j].y <= pt.y && pt.y < poly[i].y))
-      && (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
-      && (c = !c);
-    console.log(poly, pt, c)
-  return c;
-}
+// function isPointInPoly(poly, pt){
+//   if (!poly) return false;
+//   for(var c = false, i = -1, l = poly.length, j = l - 1; ++i < l; j = i)
+//       ((poly[i].y <= pt.y && pt.y < poly[j].y) || (poly[j].y <= pt.y && pt.y < poly[i].y))
+//       && (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
+//       && (c = !c);
+//   return c;
+// }
+
+// isPointInPoly([{x: 215.932, y: 450.079}, {x: 125.513, y: 447.833}], {x: 161.666, y: 446.7})
+
+function isPointInPoly(vs, point) {
+  
+  var x = point.x, y = point.y;
+
+  var inside = false;
+  for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+      var xi = vs[i].x, yi = vs[i].y;
+      var xj = vs[j].x, yj = vs[j].y;
+      var intersect = ((yi - y > 2) != (yj - y > 2))
+          && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+  }
+  return inside;
+};
 
 function isPolyBisectPoly(firstPoly, secondPoly) {
   if (!firstPoly || !secondPoly) return;
@@ -218,21 +231,19 @@ function isPolyBisectPoly(firstPoly, secondPoly) {
           a:{x: firstPoly[i].x, y:firstPoly[i].y},
           b:{x: firstPoly[j].x, y:firstPoly[j].y}
         }, 
-          {a:{x: secondPoly[ii].x, y:secondPoly[ii].y}, 
+        {
+          a:{x: secondPoly[ii].x, y:secondPoly[ii].y}, 
           b:{x: secondPoly[jj].x, y:secondPoly[jj].y}
         }
       );
-
-      if (cross) intersection.push(cross);
-        // determine nearest intersection
-        // intersection = intersection && (
-        //   (secondPoly[ii].y - cross.y) / (secondPoly[ii].x - cross.x) > 
-        //   (secondPoly[ii].y - intersection.y) / (secondPoly[ii].x - intersection.x)) ? intersection : {intersect: cross, end: firstPoly[i]};
+      
+      if (cross) {
+        drawCircle(cross.x, cross.y, "red")
+      intersection.push(cross);
+      }
     };
   }
-
   return intersection;
-
 }
 
 function drawCircle(x, y, stroke) {
@@ -290,12 +301,14 @@ function findIntersection() {
     for(j=0; j < pointList.length; j++) {
       if (i === j && i < pointList.length -1) j++;
       if (isPolyBisectPoly(pointList[i], pointList[j])) {
-        console.log("area 1 and poly 1", areas[i], pointList[i])
-        console.log("area 2 and poly 2", areas[j], pointList[j]);
+        // console.log("area 1 and poly 1", areas[i], pointList[i])
+        // console.log("area 2 and poly 2", areas[j], pointList[j]);
       }
     }
   }
 }
+
+let waypoints = {};
 
 function makeWaypoints() {
   // take pointList and identify lines that are navigable
@@ -306,7 +319,6 @@ function makeWaypoints() {
         let above;
         let below;
         crosses.forEach(point => {
-          // need to handle both sides
           if (point.x === cross.x || point.y === cross.y) {
             const newDistance = (cross.x - point.x) + (cross.y - point.y);
             
@@ -320,13 +332,28 @@ function makeWaypoints() {
         if (above.x !== below.x || above.y !== below.y) {
           const x = (above.x - below.x) / 2 + below.x;
           const y = (above.y - below.y) / 2 + below.y;
+          const poly = [
+            {x: x - 6, y: y - 6},
+            {x: x + 6, y: y - 6},
+            {x: x - 6, y: y + 6},
+            {x: x + 6, y: y + 6}
+          ]
           let draw = true;
           let count = 0;
 
           while(draw && count < structureList.length) {
-            draw = !isPointInPoly(structureList[count++], {x,y});
+            const crossCount = isPolyBisectPoly(structureList[count++], poly);
+            draw = !crossCount.length;
+            // draw = !isPointInPoly(structureList[count++], {x,y});
           }
-          if(draw) drawCircle(x, y, 'green')
+          if(draw) {
+            drawCircle(x, y, 'green')
+            waypoints[['a', 'b', 'c'][Math.round(Math.random() * 2)] + Math.round((Math.random() * 1000000))] = {
+              point: {x,y},
+              connections: []
+            };
+          }
+          // if(draw) drawPath(buildPath('', poly), 'green');
         }
         crosses.push(cross);
       })
@@ -334,7 +361,54 @@ function makeWaypoints() {
   })
 }
 
-makeWaypoints()
+function connectWaypoints(waypoints) {
+  let i, j;
+  const keys = Object.keys(waypoints);
+  for(i = 0; i < keys.length - 1; i++) {
+    for(j = i + 1; j < keys.length; j++ ) {
+      const line = [waypoints[keys[i]].point, waypoints[keys[j]].point];
+      let walkable = true;
+      let count = 0;
+      while(walkable && count < structureList.length) {
+        const test = isPolyBisectPoly(structureList[count++], line)
+        walkable = test.length === 0;
+      }
+      let stroke;
+      if (walkable) {
+        stroke = 'yellow';
+        waypoints[keys[i]].connections.push(keys[j]);
+        waypoints[keys[j]].connections.push(keys[i]);
+      }
+
+      drawPath(buildPath('', line), stroke)
+    }
+  }
+}
+
+function addPOIPoints(waypoints) {
+  newAreas.forEach(area => {
+    const center = area.nodeName === 'rect' ?
+      {
+        x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value) / 2,
+        y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value) / 2,
+      } : 
+      {
+        x: parseFloat(area.getBBox().x) + parseFloat(area.getBBox().width) / 2,
+        y: parseFloat(area.getBBox().y) + parseFloat(area.getBBox().height) / 2,
+      }
+      
+      drawCircle(center.x, center.y, "blue")
+      waypoints[['a', 'b', 'c'][Math.round(Math.random() * 2)] + Math.round((Math.random() * 1000000))] = {
+          point: center,
+          connections: []
+        };
+    })
+}
+
+addPOIPoints(waypoints);
+
+makeWaypoints();
+connectWaypoints(waypoints)
 
 const firstPoly = [{x: 943, y: 417},
   {x: 1066, y: 417},
@@ -347,14 +421,17 @@ const secondPoly = [
   {x: 949, y: 417}];
 
 const poly2a = []
-console.log(structureList);
-// console.log(pointList[9]);
+// console.log(structureList);
+console.log(pointList[0]);
 // structureList.forEach((structure, i) => {
-//   if(isPolyBisectPoly(structure, secondPoly)) console.log(i)
+//   isPolyBisectPoly(structure, pointList[0])
 // })
 // console.log(secondPoly)
-// console.log(isPolyBisectPoly(structureList[38], [pointA, pointB]));
+// console.log((structureList[16], pointList[3]));
 // console.log(isPolyBisectPoly(structureList[38], [pointD, pointB]));
 // console.log(isPolyBisectPoly(pointList[9], structureList[39]));
 // console.log(isPolyBisectPoly(pointList[9], structureList[38]));
 // createGrid();
+
+const walkPoints="564 311 564 262 415 262 415 473 574 473 574 311 564 311"
+const unwalkPoint="406 261 406 283 411 283 411 321 417 321 417 266 503 266 503 261 406 261 406 261"
