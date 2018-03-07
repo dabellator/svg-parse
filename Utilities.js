@@ -18,11 +18,12 @@ export function drawPath(path, stroke) {
 }
 
 export function buildPath(path, points) {
+  let pointsCopy = points.slice();
   if (!path) {
-    const start = points.shift();
+    const start = pointsCopy.shift();
     path = `M ${start.x} ${start.y} `
   }
-  points.forEach(point => {
+  pointsCopy.forEach(point => {
     path += `L ${point.x} ${point.y} `
   })
   return path;
@@ -54,15 +55,20 @@ export function extractPolyElement(element, children) {
   return children;
 }
 
+function parseDecimal(float) {
+
+  return parseFloat(parseFloat(float).toFixed(4));
+}
+
 export function generatePoints(area) {
 
   switch (area.nodeName) {
     case 'rect':
       return [
-        {x: parseFloat(area.attributes.x.value), y: parseFloat(area.attributes.y.value)},
-        {x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value), y: parseFloat(area.attributes.y.value)},
-        {x: parseFloat(area.attributes.x.value) + parseFloat(area.attributes.width.value), y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value)},
-        {x: parseFloat(area.attributes.x.value), y: parseFloat(area.attributes.y.value) + parseFloat(area.attributes.height.value)}
+        {x: parseDecimal(area.attributes.x.value), y: parseDecimal(area.attributes.y.value)},
+        {x: parseDecimal(area.attributes.x.value) + parseDecimal(area.attributes.width.value), y: parseDecimal(area.attributes.y.value)},
+        {x: parseDecimal(area.attributes.x.value) + parseDecimal(area.attributes.width.value), y: parseDecimal(area.attributes.y.value) + parseDecimal(area.attributes.height.value)},
+        {x: parseDecimal(area.attributes.x.value), y: parseDecimal(area.attributes.y.value) + parseDecimal(area.attributes.height.value)}
       ]
       break;
 
@@ -70,8 +76,8 @@ export function generatePoints(area) {
       let points = []
       Object.keys(area.points).forEach(key => {
         points[key] = {
-          x: parseFloat(area.points[key].x),
-          y: parseFloat(area.points[key].y)
+          x: parseDecimal(area.points[key].x),
+          y: parseDecimal(area.points[key].y)
         }
       })
       return points;
@@ -79,9 +85,13 @@ export function generatePoints(area) {
 
     case 'path':
       const box = area.getBBox();
-      return {
-        0: {x: box.x, y: box.y}
-      }
+      return [
+        {x: box.x, y: box.y},
+        {x: box.x + box.width, y: box.y},
+        {x: box.x + box.width, y: box.y + box.height},
+        {x: box.x, y: box.y + box.height},
+        {x: box.x, y: box.y}
+      ]
       break;
 
     default:
@@ -100,7 +110,7 @@ export function findCenter(element) {
   switch (element.nodeName) {
     case 'rect':
       Object.keys(center).forEach(key => {
-        center[key] = parseFloat(element.attributes[key].value)
+        center[key] = parseDecimal(element.attributes[key].value)
       });
       break;
     case 'polygon':
@@ -188,18 +198,39 @@ function isPointOnLine(a,b, point) {
 }
 
 function findIntersectionFromPoints(a,b) {
-  const intersection = calcInter(lineEquation(a.a, a.b), lineEquation(b.a, b.b));
+  let intersection = calcInter(lineEquation(a.a, a.b), lineEquation(b.a, b.b));
   if (!intersection) return 0;
+  intersection = {x:parseDecimal(intersection.x),y:parseDecimal(intersection.y)};
   return isPointOnLine(a.a, a.b, intersection) && isPointOnLine(b.a, b.b, intersection) ? intersection : 0;
+}
+
+function isSegmentBisectPoly(segment, poly) {
+  if (!segment || !poly) return;
+  let intersection = [];
+  for(let i = -1, l = poly.length, j = i - 1; ++i < l; j = i) {
+    const cross = findIntersectionFromPoints(
+      {
+        a:{x: firstPoly[i].x, y:firstPoly[i].y},
+        b:{x: firstPoly[j].x, y:firstPoly[j].y}
+      }, 
+      {
+        a:{x: secondPoly[ii].x, y:secondPoly[ii].y}, 
+        b:{x: secondPoly[jj].x, y:secondPoly[jj].y}
+      }
+    );
+
+    if (cross) {
+      intersection.push(cross);
+    }
+  }
+
 }
 
 export function isPolyBisectPoly(firstPoly, secondPoly) {
   if (!firstPoly || !secondPoly) return;
   let intersection = [];
-  let stroke;
   
   for(let i = -1, l = firstPoly.length, j = l - 1; ++i < l; j = i) {
-    
     for(let ii = -1, ll = secondPoly.length, jj = ll - 1; ++ii < ll; jj = ii) {
       const cross = findIntersectionFromPoints(
         {
@@ -220,6 +251,9 @@ export function isPolyBisectPoly(firstPoly, secondPoly) {
   
   return intersection;
 }
+
+// update polybisect poly to search for line intersections instead. keep track of the "walkable" line, gather the
+// crosses, and then continue
 
 export function findAccessPoints(walkable, unwalkableAreas) {
   let crosses = [];
