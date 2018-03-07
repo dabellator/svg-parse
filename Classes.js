@@ -45,8 +45,6 @@ POI.prototype.findAccessPoints = function(structureList) {
   }
 };
 
-POI.prototype.addWalkable;
-
 export function POIs() {
   this.pois = [];
 }
