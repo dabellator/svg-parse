@@ -29,6 +29,8 @@ export function buildPath(path, points) {
   return path;
 }
 
+// end temp dev tools
+
 // The following types have not yet been handled
 export const ignoreList = [
   'line',
@@ -128,36 +130,12 @@ export function findCenter(element) {
   return {x: center.x + center.width / 2, y: center.y + center.height / 2};
 }
 
-export function isPointInPoly(vs, point) {
+function isPointInPoly(vs, point) {
   
   const line = [point, {x:0,y:0}];
   const intersections = isPolyBisectPoly(vs, line);
   return intersections.length;
 };
-
-function findSlope(a, b) {
-  return (a.y - b.y) / (a.x - b.x);
-}
-
-function findIntercept(point, m) {
-  return point.y + m * point.x;
-}
-
-function findCross(a, aa, b, bb) {
-  const x = ((((a.x * aa.y) - (a.y * aa.x)) * (b.x - bb.x)) - ((a.x - aa.x) * ((b.x * bb.y) - (b.y * bb.x))))
-            / ((a.x - aa.x) * (b.y - bb.y) - (a.y - aa.y) * (b.x - bb.x));
-  const y = ((a.x * aa.y - a.y * aa.x) * (b.y - bb.y) - (a.y - aa.y) * (b.x * bb.y - b.y * bb.x))
-            / ((a.x - aa.x) * (b.y - bb.y) - (a.y - aa.y) * (b.x - bb.x))
-
-  if ( x && y ) {
-    var circle = document.createElementNS(svgns, 'circle');
-    circle.setAttributeNS(null, 'cx',x);
-    circle.setAttributeNS(null, 'cy',y);
-    circle.setAttributeNS(null, 'r', '2');
-    circle.setAttributeNS(null, 'fill', 'green')
-    svgElement.appendChild(circle)
-  }
-}
 
 function findMiddlePoly(above, below) {
   if (!above || !below) return null;
@@ -223,7 +201,6 @@ function isSegmentBisectPoly(segment, poly) {
       intersection.push(cross);
     }
   }
-
 }
 
 export function isPolyBisectPoly(firstPoly, secondPoly) {
