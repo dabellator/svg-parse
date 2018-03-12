@@ -7,7 +7,8 @@ import {
   isPolyBisectPoly,
   drawCircle,
   buildPath,
-  drawPath } from './Utilities';
+  drawPath, 
+  createAdditionalWaypoints} from './Utilities';
 
 export function Waypoint(location) {
   this.location = location;
@@ -42,6 +43,9 @@ POI.prototype.findAccessPoints = function(structureList) {
     findAccessPoints(this.perimeter, structureList).forEach(point => {
       waypoints.addWaypoint(point);
     });
+    createAdditionalWaypoints(this.center, this.perimeter, structureList).forEach(point => {
+      waypoints.addWaypoint(point)
+    })
   }
 };
 
