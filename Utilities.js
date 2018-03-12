@@ -1,7 +1,7 @@
 // temporary dev tools
-let svgElement = document.getElementById("Level11.Floor30");
-const svgns = "http://www.w3.org/2000/svg";
+export const svgns = "http://www.w3.org/2000/svg";
 export function drawCircle(x, y, stroke) {
+  let svgElement = document.getElementById("Level11.Floor30");
   var circle = document.createElementNS(svgns, 'circle');
   circle.setAttributeNS(null, 'cx', x);
   circle.setAttributeNS(null, 'cy', y);
@@ -11,6 +11,7 @@ export function drawCircle(x, y, stroke) {
 }
 
 export function drawPath(path, stroke) {
+  let svgElement = document.getElementById("Level11.Floor30");
   let pathElement = svgElement.appendChild(document.createElementNS(svgns, 'path'));
   pathElement.setAttribute('d', path);
   pathElement.setAttribute('stroke', stroke);
@@ -33,8 +34,7 @@ export function buildPath(path, points) {
 
 // The following types have not yet been handled
 export const ignoreList = [
-  'line',
-  'polyline'
+  'line'
 ]
 
 // stored value for handling js rounding
@@ -75,6 +75,7 @@ export function generatePoints(area) {
       break;
 
     case 'polygon':
+    case 'polyline':
       let points = []
       Object.keys(area.points).forEach(key => {
         points[key] = {
@@ -115,7 +116,9 @@ export function findCenter(element) {
         center[key] = parseDecimal(element.attributes[key].value)
       });
       break;
+
     case 'polygon':
+    case 'polyline':
     case 'path':
       const box = element.getBBox();
       Object.keys(center).forEach(key => {
@@ -184,23 +187,24 @@ function findIntersectionFromPoints(a,b) {
 
 function isSegmentBisectPoly(segment, poly) {
   if (!segment || !poly) return;
-  let intersection = [];
-  for(let i = -1, l = poly.length, j = i - 1; ++i < l; j = i) {
+  let intersections = [];
+  for(let i = -1, l = poly.length, j = l - 1; ++i < l; j = i) {
     const cross = findIntersectionFromPoints(
       {
-        a:{x: firstPoly[i].x, y:firstPoly[i].y},
-        b:{x: firstPoly[j].x, y:firstPoly[j].y}
+        a:segment[0],
+        b:segment[1]
       }, 
       {
-        a:{x: secondPoly[ii].x, y:secondPoly[ii].y}, 
-        b:{x: secondPoly[jj].x, y:secondPoly[jj].y}
+        a:{x: poly[i].x, y:poly[i].y}, 
+        b:{x: poly[j].x, y:poly[j].y}
       }
     );
 
     if (cross) {
-      intersection.push(cross);
+      intersections.push(cross);
     }
   }
+  return intersections;
 }
 
 export function isPolyBisectPoly(firstPoly, secondPoly) {
@@ -233,40 +237,56 @@ export function isPolyBisectPoly(firstPoly, secondPoly) {
 // crosses, and then continue
 
 export function findAccessPoints(walkable, unwalkableAreas) {
-  let crosses = [];
   let waypoints = [];
-  unwalkableAreas.forEach(unwalkable => {
-    unwalkable = unwalkable.points;
-    isPolyBisectPoly(unwalkable, walkable).forEach(cross => {
-      let above;
-      let below;
-      crosses.forEach((point,i) => {
-        if (point.x === cross.x || point.y === cross.y) {
+  for(let i = -1, l = walkable.length, j = l - 1; ++i < l; j = i) {
+    const segment = [
+      {x: walkable[i].x, y: walkable[i].y},
+      {x: walkable[j].x, y: walkable[j].y}
+    ];
+    
+    let crosses = [];
+    unwalkableAreas.forEach(unwalkable => {
+      unwalkable = unwalkable.points;
+      isSegmentBisectPoly(segment, unwalkable).forEach(cross => {
+        let above;
+        let below;
+        crosses.forEach(point => {
           const newDistance = (cross.x - point.x) + (cross.y - point.y);
           above = above && newDistance > above.distance ? above : newDistance > 0 ? {x: point.x, y: point.y, distance: newDistance} : above;
           below = below && newDistance < below.distance ? below : newDistance < 0 ? {x: point.x, y: point.y, distance: newDistance} : below;
-        }
+        })
+        
+        let middles = []
+        if (above) middles.push(findMiddlePoly(above, cross));
+        if (below) middles.push(findMiddlePoly(cross, below));
+
+        middles.forEach(middle => {
+          let draw = true;
+          let count = 0;
+          
+          while(draw && count < unwalkableAreas.length) {
+            const crossCount = isPolyBisectPoly(unwalkableAreas[count].points, middle.poly);
+            draw = !crossCount.length && isPointInPoly(unwalkableAreas[count].points, {x:middle.x,y:middle.y}) !== 2;
+            count++
+          }
+          if(draw) {
+            waypoints.push({x:middle.x,y:middle.y})
+          }
+        })
+
+        crosses.push(cross);
       })
-      let middles = []
-      if (above) middles.push(findMiddlePoly(above, cross));
-      if (below) middles.push(findMiddlePoly(cross, below));
-
-      middles.forEach(middle => {
-        let draw = true;
-        let count = 0;
-
-        while(draw && count < unwalkableAreas.length) {
-          const crossCount = isPolyBisectPoly(unwalkableAreas[count].points, middle.poly);
-          draw = !crossCount.length && isPointInPoly(unwalkableAreas[count].points, {x:middle.x,y:middle.y}) !== 2;
-          count++
-        }
-        if(draw) {
-          waypoints.push({x:middle.x,y:middle.y})
-        }
-      })
-
-      crosses.push(cross);
     })
+  }
+  
+  return waypoints;
+}
+
+export function createAdditionalWaypoints(center, perimeter, structures) {
+  let waypoints = [];
+  perimeter.forEach(perimeterPoint => {
+    const segment = [center, perimeterPoint];
+    waypoints = waypoints.concat(findAccessPoints(segment, structures));
   })
   return waypoints;
 }
